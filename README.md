@@ -12,14 +12,22 @@ ChugaGPT is a powerful offline AI-powered development tool with a modern GUI int
 - **Code Entity Browser**: Quick access to classes, functions, and methods
 - **Syntax Highlighting**: Built-in code highlighting for better readability
 - **Dark Theme**: Modern Warp-inspired dark theme for comfortable coding
-- **Model Manageme
-curl -fsSL https://ollama.ai/install.sh | sh
-```
-
-#### macOS
-Download from: [htnt**: Easy switching between different AI models
+- **Model Management**: Easy switching between different AI models
 - **Project Scanning**: Comprehensive project structure analysis
 - **History Management**: Persistent chat history across sessions
+- **Chat History**: Record and revisit previous conversations
+
+## 📸 Screenshots
+
+### Main Interface
+![Main Interface](chugGPTScreenShoot1.png)
+
+*ChugaGPT's modern dark-themed interface with multi-tab chat support.*
+
+### Project Analysis
+![Project Analysis](chugGPTScreenShoot2.png)
+
+*Project analysis feature showing code insights and AI suggestions.*
 
 ## 🚀 Prerequisites
 

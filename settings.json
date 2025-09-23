@@ -1,0 +1,9 @@
+{
+    "ollama_path": "ollama",
+    "font_size": 14,
+    "dark_theme": false,
+    "project_root": "..",
+    "allow_long_analysis": false,
+    "language": "english",
+    "enable_completion": false
+}

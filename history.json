@@ -1,0 +1,30 @@
+{"date": "2025-09-23 21:01:11.217216", "user": "hello", "model": "phi3:mini"}
+{"date": "2025-09-23 21:01:26.405999", "user": "yes make me a joke", "model": "phi3:mini"}
+{"date": "2025-09-23 21:01:48.143739", "user": "hello", "model": "phi3:mini"}
+{"date": "2025-09-23 21:07:38.676446", "user": "hello", "model": "phi3:mini"}
+{"date": "2025-09-23 21:08:12.246378", "user": "hello", "model": "phi3:mini"}
+{"date": "2025-09-23 21:09:20.911175", "user": "hello", "model": "phi3:mini"}
+{"date": "2025-09-23 21:10:20.215182", "user": "hello", "model": "phi3:mini"}
+{"date": "2025-09-23 21:13:29.542791", "user": "hello", "model": "phi3:mini"}
+{"date": "2025-09-23 21:26:05.916136", "user": "hello", "model": "phi3:mini"}
+{"date": "2025-09-23 21:26:40.692109", "user": "hello", "model": "phi3:mini"}
+{"date": "2025-09-23 21:27:08.763842", "user": "hello", "model": "phi3:mini"}
+{"date": "2025-09-23 21:33:24.714335", "user": "hello", "model": "phi3:mini"}
+{"date": "2025-09-23 21:33:47.860301", "user": "# Project Analysis Results\n\n## Project: chugaGPT\n- **Total Files**: 19\n- **Lines of Code**: 3777\n- **Issues Found**: 22\n\n## Key Issues:\n### High Complexity Files\n- logic.py (complexity: 33)\n- utils.py (complexity: 22)\n- analysis_context.py (complexity: 17)\n- code_writer.py (complexity: 42)\n- completion.py (complexity: 57)\n### Large Files\n- scanner.py (711 lines)\n- gui.py (1394 lines)\n### Missing Docstrings\n- settings.py (0.0% functions documented)\n- code_writer_dialog.py (20.0% functions documented)\n- utils.py (40.0% functions documented)\n- history.py (0.0% functions documented)\n- main.py (36.4% functions documented)\n### Unused Imports\n- logic.py: clean_output\n- code_writer_dialog.py: QMessageBox\n- code_writer.py: Path\n- completion.py: Dict, Optional, Tuple...\n- main.py: QMenuBar, QMenu, load_history\n\n## Current Suggestions:\n### Architecture\n- Add unit tests to improve code reliability\n### Code_Quality\n- Refactor high-complexity functions into smaller, more focused functions\n- Add docstrings to all public functions and classes\n- Remove unused imports to clean up the codebase\n\n\n## Task:\nAs an expert software engineer, please analyze this project analysis and provide:\n1. Detailed assessment of the code quality and architecture\n2. Prioritized list of issues that need immediate attention\n3. Specific code improvements and refactoring suggestions\n4. Best practices recommendations for this type of project\n5. Any potential bugs or security concerns you can identify from the analysis\n\nPlease be thorough but practical in your recommendations. Focus on actionable improvements that will have the most impact.", "model": "phi3:mini"}
+{"date": "2025-09-23 21:39:19.592616", "user": "Continue", "model": "phi3:mini"}
+{"date": "2025-09-23 22:04:13.704778", "user": "hello", "model": "phi3:mini"}
+{"date": "2025-09-23 22:12:17.248583", "user": "hello", "model": "phi3:mini"}
+{"date": "2025-09-23 22:14:21.130144", "user": "hello", "model": "phi3:mini"}
+{"date": "2025-09-23 22:22:14.222876", "user": "hello", "model": "phi3:mini"}
+{"date": "2025-09-23 22:22:42.642710", "user": "# Project Analysis Results\n\n## Project: chugaGPT\n- **Total Files**: 19\n- **Lines of Code**: 3828\n- **Issues Found**: 22\n\n## Key Issues:\n### High Complexity Files\n- logic.py (complexity: 33)\n- analysis_context.py (complexity: 17)\n- gui.py (complexity: 147)\n- code_writer.py (complexity: 42)\n- utils.py (complexity: 22)\n### Large Files\n- gui.py (1445 lines)\n- scanner.py (711 lines)\n### Missing Docstrings\n- settings.py (0.0% functions documented)\n- code_writer_dialog.py (20.0% functions documented)\n- history.py (0.0% functions documented)\n- utils.py (40.0% functions documented)\n- main.py (36.4% functions documented)\n### Unused Imports\n- logic.py: clean_output\n- code_writer_dialog.py: QMessageBox\n- gui.py: QGroupBox, QFrame, OllamaTypingWorker...\n- code_writer.py: Path\n- completion.py: Dict, Optional, Tuple...\n\n## Current Suggestions:\n### Architecture\n- Add unit tests to improve code reliability\n### Code_Quality\n- Refactor high-complexity functions into smaller, more focused functions\n- Add docstrings to all public functions and classes\n- Remove unused imports to clean up the codebase\n\n\n## Task:\nAs an expert software engineer, please analyze this project analysis and provide:\n1. Detailed assessment of the code quality and architecture\n2. Prioritized list of issues that need immediate attention\n3. Specific code improvements and refactoring suggestions\n4. Best practices recommendations for this type of project\n5. Any potential bugs or security concerns you can identify from the analysis\n\nPlease be thorough but practical in your recommendations. Focus on actionable improvements that will have the most impact.", "model": "phi3:mini"}
+{"date": "2025-09-23 22:23:33.946584", "user": "hello", "model": "phi3:mini"}
+{"date": "2025-09-23 22:27:06.502404", "user": "hello", "model": "phi3:mini"}
+{"date": "2025-09-23 22:31:40.759020", "user": "hello", "model": "phi3:mini"}
+{"date": "2025-09-23 23:00:51.703568", "user": "hello", "model": "phi3:mini"}
+{"date": "2025-09-23 23:02:33.228276", "user": "hello", "model": "phi3:mini"}
+{"date": "2025-09-23 23:13:46.244401", "user": "hello", "model": "phi3:mini"}
+{"date": "2025-09-23 23:14:11.671938", "user": "ds", "model": "phi3:mini"}
+{"date": "2025-09-23 23:27:18.154478", "user": "hello", "model": "qwen3:8b"}
+{"date": "2025-09-23 23:31:56.005544", "user": "hello", "model": "phi3:mini"}
+{"date": "2025-09-23 23:33:03.153523", "user": "hello", "model": "qwen3:8b"}
+{"date": "2025-09-23 23:51:56.174755", "user": "hello", "model": "phi3:mini"}

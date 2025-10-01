@@ -115,7 +115,7 @@ ollama pull deepseek-coder:6.7b-javascript
 ### Step 3: Install ChugaGPT
 
 #### Option 1: Download Release
-1. Go to the [Releases](https://github.com/your-repo/ChugaGPT/releases) page
+1. Go to the [Releases](https://github.com/ErickWDaniel/Chugagpt_Offline_Tool/releases) page
 2. Download the latest version for your operating system
 3. Extract and run the executable
 
@@ -123,8 +123,8 @@ ollama pull deepseek-coder:6.7b-javascript
 
 Clone the repository:
 ```bash
-git clone https://github.com/your-repo/ChugaGPT.git
-cd ChugaGPT
+git clone https://github.com/ErickWDaniel/Chugagpt_Offline_Tool.git
+cd Chugagpt_Offline_Tool
 ```
 
 Create a virtual environment (recommended):
@@ -427,8 +427,8 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## 📞 Support
 
-- **Issues**: Report bugs and request features on [GitHub Issues](https://github.com/ErickWDaniel/Chugagpt_Offline_Tool/ChugaGPT/issues)
-- **Discussions**: Join community discussions on [GitHub Discussions](https://github.com/ErickWDaniel/Chugagpt_Offline_Tool/ChugaGPT/discussions)
+- **Issues**: Report bugs and request features on [GitHub Issues](https://github.com/ErickWDaniel/Chugagpt_Offline_Tool/issues)
+- **Discussions**: Join community discussions on [GitHub Discussions](https://github.com/ErickWDaniel/Chugagpt_Offline_Tool/discussions)
 - **Documentation**: Check this README and inline code documentation
 
 ---

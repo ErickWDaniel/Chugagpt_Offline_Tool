@@ -1,0 +1,7 @@
+{
+  "name": "file_search",
+  "description": "Search and explore files in the project",
+  "triggers": ["find file", "search", "glob", "where is", "find function", "grep"],
+  "version": "1.0.0",
+  "tools": ["glob", "grep", "read"]
+}

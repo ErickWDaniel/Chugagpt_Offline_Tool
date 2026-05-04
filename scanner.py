@@ -132,22 +132,368 @@ class BaseProjectScanner:
         return {'classes': classes, 'functions': functions, 'imports': imports}
 
     def _analyze_python_file(self, file_path: Path) -> Dict[str, Any]:
-        """Analyze Python file using AST."""
+        """Semantic analysis of Python file using AST."""
         try:
-            with open(file_path, 'r', encoding='utf-8') as f:
+            with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
                 content = f.read()
-
-            tree = ast.parse(content, filename=str(file_path))
-
-            elements = self._collect_ast_elements(tree)
-
-            analysis = {
-                'classes': elements['classes'],
-                'functions': elements['functions'],
-                'imports': elements['imports'],
+            
+            tree = ast.parse(content)
+            
+            info = {
+                'type': 'Python',
+                'classes': [],
+                'functions': [],
+                'imports': [],
+                'used_imports': set(),
+                'variables': [],
+                'constants': [],
+                'exceptions_handled': [],
+                'todo_count': content.count('TODO') + content.count('FIXME'),
                 'line_count': len(content.splitlines()),
-                'content_preview': content[:500] + '...' if len(content) > 500 else content
+                'complexity': self._calculate_complexity(tree),
+                'docstrings': {'total_functions': 0, 'functions': 0},
+                'semantic_issues': [],
+                'data_flow': {},
+                'control_flow': {},
+                'security_issues': [],
             }
+            
+            # Semantic analysis
+            self._analyze_semantic_python(tree, info, content)
+            
+            # Original analysis
+            for node in ast.walk(tree):
+                if isinstance(node, ast.ClassDef):
+                    info['classes'].append({
+                        'name': node.name,
+                        'line': node.lineno,
+                        'methods': [m.name for m in ast.walk(node) if isinstance(m, ast.FunctionDef)],
+                        'bases': [ast.unparse(b) for b in node.bases] if hasattr(ast, 'unparse') else [],
+                    })
+                elif isinstance(node, ast.FunctionDef) or isinstance(node, ast.AsyncFunctionDef):
+                    # Check if it's not inside a class
+                    parent = self._get_parent(tree, node)
+                    if not isinstance(parent, ast.ClassDef):
+                        args = [a.arg for a in node.args.args]
+                        info['functions'].append({
+                            'name': node.name,
+                            'line': node.lineno,
+                            'args': args,
+                        })
+                
+                elif isinstance(node, (ast.Import, ast.ImportFrom)):
+                    if isinstance(node, ast.Import):
+                        for alias in node.names:
+                            info['imports'].append(alias.name)
+                    else:
+                        module = node.module or ''
+                        for alias in node.names:
+                            info['imports'].append(f"{module}.{alias.name}" if module else alias.name)
+            
+            # Deep semantic checks
+            info['unused_imports'] = self._find_unused_imports_advanced(tree, info['imports'], content)
+            info['docstrings'] = self._check_docstrings_advanced(tree)
+            info['semantic_issues'].extend(self._detect_semantic_issues(tree, content))
+            info['security_issues'] = self._detect_security_issues_advanced(tree, content)
+            info['data_flow'] = self._analyze_data_flow(tree)
+            info['control_flow'] = self._analyze_control_flow(tree)
+            
+            # Convert set to list for JSON serialization
+            info['used_imports'] = list(info['used_imports'])
+            
+            return info
+        except SyntaxError as e:
+            return {'error': f"Python syntax error in {file_path}: {str(e)}"}
+        except Exception as e:
+            return {'error': f"Python analysis failed: {str(e)}"}
+    
+    def _analyze_semantic_python(self, tree: ast.AST, info: Dict, content: str):
+        """Advanced semantic analysis."""
+        try:
+            # Detect dead code
+            info['semantic_issues'].extend(self._find_dead_code(tree))
+            
+            # Detect code smells
+            info['semantic_issues'].extend(self._detect_code_smells(tree, content))
+            
+            # Detect performance issues
+            info['semantic_issues'].extend(self._detect_performance_issues(tree))
+            
+            # Check error handling
+            info['exception_handling'] = self._analyze_exception_handling(tree)
+            
+        except Exception as e:
+            info['semantic_issues'].append(f"Semantic analysis error: {str(e)}")
+    
+    def _calculate_complexity(self, tree: ast.AST) -> int:
+        """Calculate cyclomatic complexity using AST."""
+        complexity = 1
+        for node in ast.walk(tree):
+            if isinstance(node, (ast.If, ast.While, ast.For, ast.AsyncFor)):
+                complexity += 1
+            elif isinstance(node, ast.ExceptHandler):
+                complexity += 1
+            elif isinstance(node, (ast.And, ast.Or)):
+                complexity += 1
+            elif isinstance(node, ast.comprehension):
+                complexity += 1
+        return complexity
+    
+    def _find_unused_imports_advanced(self, tree: ast.AST, imports: List[str], content: str) -> List[str]:
+        """Find unused imports using semantic analysis."""
+        unused = []
+        try:
+            # Build a set of names actually used
+            names_used = set()
+            for node in ast.walk(tree):
+                if isinstance(node, ast.Name) and isinstance(node.ctx, ast.Load):
+                    names_used.add(node.id)
+                elif isinstance(node, ast.Attribute):
+                    if isinstance(node.value, ast.Name):
+                        names_used.add(node.value.id)
+            
+            # Check each import
+            for imp in imports:
+                # Handle "from X import Y"
+                if '.' in imp:
+                    module, name = imp.rsplit('.', 1)
+                    if name not in names_used and module not in names_used:
+                        unused.append(imp)
+                else:
+                    if imp not in names_used:
+                        unused.append(imp)
+        except Exception:
+            pass
+        return unused
+    
+    def _check_docstrings_advanced(self, tree: ast.AST) -> Dict[str, Any]:
+        """Check docstring coverage with semantic understanding."""
+        total = 0
+        with_docstring = 0
+        
+        for node in ast.walk(tree):
+            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+                total += 1
+                if ast.get_docstring(node):
+                    with_docstring += 1
+        
+        return {
+            'total_functions': total,
+            'functions': with_docstring,
+            'coverage': f"{with_docstring/total*100:.1f}%" if total > 0 else "0%"
+        }
+    
+    def _detect_semantic_issues(self, tree: ast.AST, content: str) -> List[str]:
+        """Detect semantic issues in code."""
+        issues = []
+        
+        try:
+            # Check for mutable default arguments
+            for node in ast.walk(tree):
+                if isinstance(node, ast.FunctionDef):
+                    for default in node.args.defaults:
+                        if isinstance(default, (ast.List, ast.Dict, ast.Set)):
+                            issues.append(f"Mutable default argument in {node.name} (line {node.lineno})")
+            
+            # Check for bare except clauses
+            for node in ast.walk(tree):
+                if isinstance(node, ast.ExceptHandler):
+                    if node.type is None:
+                        issues.append(f"Bare 'except:' clause found (line {node.lineno}) - too broad")
+            
+            # Check for unused variables
+            assigned = set()
+            used = set()
+            for node in ast.walk(tree):
+                if isinstance(node, ast.Assign):
+                    for target in node.targets:
+                        if isinstance(target, ast.Name):
+                            assigned.add(target.id)
+                elif isinstance(node, ast.Name) and isinstance(node.ctx, ast.Load):
+                    used.add(node.id)
+            
+            unused_vars = assigned - used
+            for var in unused_vars:
+                if not var.startswith('_'):
+                    issues.append(f"Potentially unused variable: {var}")
+                    
+        except Exception as e:
+            issues.append(f"Semantic analysis error: {str(e)}")
+            
+        return issues
+    
+    def _detect_security_issues_advanced(self, tree: ast.AST, content: str) -> List[str]:
+        """Detect security issues using semantic analysis."""
+        issues = []
+        
+        try:
+            # Check for hardcoded secrets
+            secret_patterns = ['password', 'secret', 'api_key', 'token', 'credential']
+            for node in ast.walk(tree):
+                if isinstance(node, ast.Assign):
+                    for target in node.targets:
+                        if isinstance(target, ast.Name):
+                            if any(p in target.id.lower() for p in secret_patterns):
+                                # Check if it's assigned a string literal
+                                if isinstance(node.value, ast.Constant) and isinstance(node.value.value, str):
+                                    if len(node.value.value) > 8:
+                                        issues.append(f"Potential hardcoded secret: {target.id} (line {node.lineno})")
+            
+            # Check for SQL injection vulnerabilities
+            for node in ast.walk(tree):
+                if isinstance(node, ast.Call):
+                    if isinstance(node.func, ast.Attribute) and 'execute' in str(node.func.attr):
+                        # Check if SQL query uses string formatting
+                        for arg in node.args:
+                            if isinstance(arg, (ast.BinOp, ast.JoinedStr)):
+                                issues.append(f"Potential SQL injection risk (line {node.lineno})")
+            
+            # Check for eval/exec usage
+            for node in ast.walk(tree):
+                if isinstance(node, ast.Call):
+                    if isinstance(node.func, ast.Name) and node.func.id in ['eval', 'exec', '__import__']:
+                        issues.append(f"Dangerous function '{node.func.id}' used (line {node.lineno})")
+            
+            # Check for debug statements left in code
+            for node in ast.walk(tree):
+                if isinstance(node, ast.Call):
+                    if isinstance(node.func, ast.Name) and node.func.id in ['print', 'pdb.set_trace', 'breakpoint']:
+                        issues.append(f"Debug statement '{node.func.id}' found (line {node.lineno})")
+                        
+        except Exception as e:
+            issues.append(f"Security analysis error: {str(e)}")
+            
+        return issues
+    
+    def _analyze_data_flow(self, tree: ast.AST) -> Dict[str, Any]:
+        """Analyze data flow in the code."""
+        flow = {
+            'variables': {},
+            'assignments': [],
+            'potential_uninitialized': [],
+        }
+        
+        try:
+            for node in ast.walk(tree):
+                if isinstance(node, ast.Assign):
+                    for target in node.targets:
+                        if isinstance(target, ast.Name):
+                            flow['assignments'].append({
+                                'name': target.id,
+                                'line': node.lineno,
+                            })
+        except Exception:
+            pass
+        
+        return flow
+    
+    def _analyze_control_flow(self, tree: ast.AST) -> Dict[str, Any]:
+        """Analyze control flow structure."""
+        flow = {
+            'if_count': 0,
+            'loop_count': 0,
+            'try_count': 0,
+            'function_count': 0,
+        }
+        
+        try:
+            for node in ast.walk(tree):
+                if isinstance(node, ast.If):
+                    flow['if_count'] += 1
+                elif isinstance(node, (ast.For, ast.While, ast.AsyncFor)):
+                    flow['loop_count'] += 1
+                elif isinstance(node, ast.Try):
+                    flow['try_count'] += 1
+                elif isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                    flow['function_count'] += 1
+        except Exception:
+            pass
+        
+        return flow
+    
+    def _find_dead_code(self, tree: ast.AST) -> List[str]:
+        """Find potentially dead code."""
+        issues = []
+        try:
+            for node in ast.walk(tree):
+                if isinstance(node, ast.If):
+                    # Check for always-true/false conditions
+                    if isinstance(node.test, ast.Constant):
+                        if node.test.value is False:
+                            issues.append(f"Dead code: if False block (line {node.lineno})")
+                        elif node.test.value is True:
+                            # The else block is dead
+                            if node.orelse:
+                                issues.append(f"Dead code: else block after if True (line {node.lineno})")
+        except Exception:
+            pass
+        return issues
+    
+    def _detect_code_smells(self, tree: ast.AST, content: str) -> List[str]:
+        """Detect code smells."""
+        smells = []
+        
+        try:
+            # Long parameter list
+            for node in ast.walk(tree):
+                if isinstance(node, ast.FunctionDef):
+                    args = len(node.args.args)
+                    if args > 5:
+                        smells.append(f"Long parameter list in {node.name} ({args} params, line {node.lineno})")
+            
+            # Too many local variables
+            for node in ast.walk(tree):
+                if isinstance(node, ast.FunctionDef):
+                    locals_count = len([n for n in ast.walk(node) if isinstance(n, ast.Assign)])
+                    if locals_count > 15:
+                        smells.append(f"Too many local variables in {node.name} (line {node.lineno})")
+            
+            # Deep nesting
+            def check_nesting(node, depth=0):
+                if depth > 4:
+                    smells.append(f"Deep nesting detected (depth {depth}, line {node.lineno})")
+                for child in ast.iter_child_nodes(node):
+                    if isinstance(child, (ast.If, ast.For, ast.While)):
+                        check_nesting(child, depth + 1)
+                    else:
+                        check_nesting(child, depth)
+            
+            check_nesting(tree)
+            
+        except Exception as e:
+            smells.append(f"Code smell detection error: {str(e)}")
+        
+        return smells
+    
+    def _analyze_exception_handling(self, tree: ast.AST) -> Dict[str, Any]:
+        """Analyze exception handling quality."""
+        result = {
+            'total_try_blocks': 0,
+            'bare_excepts': 0,
+            'specific_excepts': 0,
+        }
+        
+        try:
+            for node in ast.walk(tree):
+                if isinstance(node, ast.Try):
+                    result['total_try_blocks'] += 1
+                    for handler in node.handlers:
+                        if handler.type is None:
+                            result['bare_excepts'] += 1
+                        else:
+                            result['specific_excepts'] += 1
+        except Exception:
+            pass
+        
+        return result
+    
+    def _get_parent(self, tree: ast.AST, target_node: ast.AST) -> Optional[ast.AST]:
+        """Find parent node of a given node."""
+        for node in ast.walk(tree):
+            for child in ast.iter_child_nodes(node):
+                if child is target_node:
+                    return node
+        return None
 
             if self.advanced_analysis:
                 analysis['complexity'] = self._calculate_complexity(tree)

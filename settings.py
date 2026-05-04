@@ -9,13 +9,20 @@ DEFAULT_SETTINGS = {
     "project_root": "..",
     "allow_long_analysis": False,
     "language": "english",
-    "enable_completion": False
+    "enable_completion": False,
+    "model_provider": "ollama",
+    "model": "phi3:mini",
+    "openai_api_key": "",
+    "anthropic_api_key": "",
+    "google_api_key": "",
 }
 
 def load_settings():
     if os.path.exists(SETTINGS_FILE):
         with open(SETTINGS_FILE, "r") as f:
-            return json.load(f)
+            settings = json.load(f)
+            # Merge with defaults
+            return {**DEFAULT_SETTINGS, **settings}
     return DEFAULT_SETTINGS.copy()
 
 def save_settings(settings):

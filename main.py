@@ -4,7 +4,7 @@ from PySide6.QtWidgets import QApplication, QMainWindow, QMenuBar, QMenu, QMessa
 from settings import load_settings, save_settings
 from history import load_history, save_history
 from gui import ChatTab, SettingsDialog, EntitySidebar
-from logic import OllamaTypingWorker
+from logic import OllamaTypingWorker, TextChangeMonitor
 from scanner import ProjectAnalyzer
 from analysis_context import context_manager
 from pathlib import Path
@@ -12,6 +12,10 @@ from PySide6.QtWidgets import QFileDialog, QProgressDialog
 from PySide6.QtCore import QThread, Signal, Qt
 from PySide6.QtGui import QKeySequence, QAction
 from response_handler import EnhancedResponseHandler
+from tools import create_tool_executor
+from skills import get_skill_loader
+from task_agent import get_task_agent
+from unified_worker import UnifiedWorker
 
 class AnalysisWorker(QThread):
     progress = Signal(str)
@@ -74,6 +78,10 @@ class ChatApp(QMainWindow):
         # Add analyze project action to Tools menu
         analyze_project_action = tools_menu.addAction("Analyze Project")
         analyze_project_action.triggered.connect(self.analyze_project)
+        
+        # Add teams action to Tools menu
+        teams_action = tools_menu.addAction("AI Teams")
+        teams_action.triggered.connect(self.open_team_dialog)
 
         settings_action = settings_menu.addAction("Preferences")
         settings_action.triggered.connect(self.open_settings)
@@ -180,15 +188,64 @@ class ChatApp(QMainWindow):
         except Exception:
             pass
 
-        # Prepare the prompt with analysis context if available
-        prompt = text
+        # Build the full prompt with context
+        prompt_parts = []
+        
+        # Add analysis context if available
         if hasattr(tab, 'analysis_context') and tab.analysis_context:
             context = context_manager.get_context_for_chat()
             if context:
-                prompt = f"{context}\n\nUser Question: {text}"
+                prompt_parts.append(context)
+        
+        # Add tool context from previous tool executions
+        if hasattr(tab, 'tool_context') and tab.tool_context:
+            prompt_parts.append(tab.tool_context)
+        
+        # Add the user's question
+        prompt_parts.append(f"User Question: {text}")
+        
+        base_prompt = "\n\n".join(prompt_parts) if prompt_parts else text
+        
+        # Get project root for tool execution
+        project_root = self.settings.get("project_root", "..")
+        
+        # Load skills for enhanced capabilities
+        try:
+            skill_loader = get_skill_loader(project_root)
+            available_skills = skill_loader.get_available_skills()
+            skill_help = skill_loader.get_skill_help()
+        except Exception:
+            available_skills = []
+            skill_help = ""
+        
+        # Initialize task agent for background tasks
+        try:
+            task_agent = get_task_agent(tab.model, self.settings.get("ollama_path", "ollama"))
+        except Exception:
+            task_agent = None
+        
+        # Add tool and skill instructions as a system prompt
+        system_prompt = f"""You can use the following tools when needed:
+- glob <pattern>: Find files matching pattern (e.g., glob **/*.py)
+- grep <pattern> --include <ext>: Search for pattern in files (e.g., grep "function" --include *.py)
+- read <file> [limit] [offset]: Read a file (e.g., read src/main.py 100 10)
+- write <file> <content>: Write content to file
+- edit <file> <old> <new>: Edit file content (replace first occurrence)
+- bash <command>: Execute shell command
 
-        # Add thinking instruction for all prompts
-        prompt = f"Think step by step inside <ThoughtProcess/ThoughtProcess> tags, then provide your final answer inside <Response/Response> tags.\n\n{prompt}"
+Wrap tool calls in <tool>...</tool> tags like: <tool>glob **/*.py</tool>
+
+Think step by step inside <ThoughtProcess></ThoughtProcess> tags, then provide your final answer inside <Response></Response> tags.
+
+If you need to examine code, use the appropriate tool and include results in your thinking.
+
+Available Skills: {', '.join(available_skills) if available_skills else 'None'}
+Task Agent: {'Available for background exploration tasks' if task_agent else 'Not available'}
+
+{skill_help}"""
+        
+        # Combine: system prompt first, then context, then user question
+        full_prompt = f"{system_prompt}\n\n{base_prompt}"
 
         # Show model label and start streaming directly under it
         tab.chat_area.append(f"<b style='color:#66d9ef;'>[{tab.model}]</b> ")
@@ -203,26 +260,53 @@ class ChatApp(QMainWindow):
         try:
             # Create enhanced response handler
             tab.response_handler = EnhancedResponseHandler(tab.chat_area)
+            tab.response_handler.set_tool_root(project_root)
             
             # Connect signals
             tab.response_handler.new_content.connect(tab.chat_area.append)
             tab.response_handler.progress_update.connect(tab.typing_label.setText)
             tab.response_handler.error_signal.connect(lambda err: tab.chat_area.append(f"<b style='color:#ff4444;'>[Error]</b> {err}\n"))
+            tab.response_handler.tool_executed.connect(lambda res: tab.chat_area.append(f"\n<b style='color:#66d9ef;'>[Tool: {res.get('type', 'unknown')}]</b>\n{res.get('result', res.get('error', ''))}\n"))
+            
+            # Store task agent reference
+            try:
+                tab.task_agent = get_task_agent(tab.model, self.settings.get("ollama_path", "ollama"))
+            except Exception:
+                tab.task_agent = None
             
             def _on_finish():
                 tab.typing_label.setText("")
                 tab.stop_btn.setEnabled(False)
                 tab.stop_btn.setText("Stop")
                 tab.send_btn.setEnabled(True)
-                tab.response_handler.finish_response()
+                # Tools are now executed in response_handler.finish_response()
+                # Just get the tool context for follow-up questions
+                if hasattr(tab.response_handler, 'get_tool_context'):
+                    tab.tool_context = tab.response_handler.get_tool_context()
+                else:
+                    tab.tool_context = ""
             
             tab.response_handler.finished_signal.connect(_on_finish)
             
-            # Create worker for AI generation
-            tab.worker = OllamaTypingWorker(tab.model, prompt, self.settings.get("ollama_path", "ollama"), allow_long)
+            # Create unified worker for AI generation (supports Ollama + cloud)
+            provider = self.settings.get("model_provider", "ollama")
+            api_key = ""
+            if provider == "openai":
+                api_key = self.settings.get("openai_api_key", "")
+            elif provider == "anthropic":
+                api_key = self.settings.get("anthropic_api_key", "")
+            elif provider == "google":
+                api_key = self.settings.get("google_api_key", "")
+            
+            tab.worker = UnifiedWorker(
+                tab.model, full_prompt, provider,
+                self.settings.get("ollama_path", "ollama"), api_key, allow_long
+            )
             
             # Connect worker to response handler
             tab.worker.new_chunk.connect(tab.response_handler.handle_chunk)
+            tab.worker.progress_update.connect(tab.typing_label.setText)
+            tab.worker.error_signal.connect(lambda err: tab.chat_area.append(f"<b style='color:#ff4443;'>[Error]</b> {err}\n"))
             
             tab.stop_btn.setText("Halt" if allow_long else "Stop")
             tab.stop_btn.setEnabled(True)
@@ -246,8 +330,27 @@ class ChatApp(QMainWindow):
             self.settings["allow_long_analysis"] = dialog.allow_long_analysis.isChecked()
             self.settings["language"] = dialog.language_combo.currentText()
             self.settings["enable_completion"] = dialog.enable_completion.isChecked()
+            self.settings["model_provider"] = dialog.provider_combo.currentText()
+            self.settings["model"] = dialog.model_combo.currentText()
+            # Save API keys
+            provider = dialog.provider_combo.currentText()
+            if provider == "openai":
+                self.settings["openai_api_key"] = dialog.api_key_input.text()
+            elif provider == "anthropic":
+                self.settings["anthropic_api_key"] = dialog.api_key_input.text()
+            elif provider == "google":
+                self.settings["google_api_key"] = dialog.api_key_input.text()
             save_settings(self.settings)
             self.apply_theme()
+
+    def open_team_dialog(self):
+        """Open the team setup dialog"""
+        try:
+            from team_dialog import TeamDialog
+            dialog = TeamDialog(self)
+            dialog.exec()
+        except Exception as e:
+            QMessageBox.critical(self, "Teams Error", f"Failed to open team dialog:\n{e}")
 
     def show_about(self):
         QMessageBox.information(self, "About", "Offline chugaGPT AI Tool\nWarp Style GUI\nSupports multiple chat tabs.\nerickwilfreddaniel@gmail.com")
@@ -372,7 +475,7 @@ class ChatApp(QMainWindow):
 
     def closeEvent(self, event):
         """Ensure all background threads are stopped before window closes."""
-# Stop project analysis worker if running
+        # Stop project analysis worker if running
         try:
             if hasattr(self, 'analysis_worker') and self.analysis_worker:
                 try:
@@ -386,7 +489,7 @@ class ChatApp(QMainWindow):
                     pass
         except Exception:
             pass
-# Clean up each chat tab (completion engine, suggestion widget, typing workers)
+        # Clean up each chat tab (completion engine, suggestion widget, typing workers)
         try:
             for i in range(self.tabs.count()):
                 tab = self.tabs.widget(i)
@@ -397,8 +500,38 @@ class ChatApp(QMainWindow):
                         pass
         except Exception:
             pass
-# Proceed with normal close
+        # Stop task agent if running
+        try:
+            if hasattr(self, '_task_agent') and self._task_agent:
+                # Task agent doesn't have a stop method, but we can clear references
+                self._task_agent = None
+        except Exception:
+            pass
+        # Proceed with normal close
         super().closeEvent(event)
+
+    def run_background_task(self, task_type: str, root_path: str, pattern: str = ""):
+        """Run a background task using the task agent."""
+        try:
+            if not hasattr(self, '_task_agent') or not self._task_agent:
+                from task_agent import get_task_agent
+                self._task_agent = get_task_agent()
+            
+            if task_type == "explore":
+                result = self._task_agent.explore_codebase(root_path, pattern or "*.py")
+                # Show result in current tab
+                current_tab = self.tabs.currentWidget()
+                if current_tab and hasattr(current_tab, 'chat_area'):
+                    current_tab.chat_area.append(f"\n<b style='color:#66d9ef;'>[Task Agent - Explore]</b>\n{result}\n")
+            elif task_type == "search":
+                result = self._task_agent.search_code(root_path, pattern)
+                current_tab = self.tabs.currentWidget()
+                if current_tab and hasattr(current_tab, 'chat_area'):
+                    current_tab.chat_area.append(f"\n<b style='color:#66d9ef;'>[Task Agent - Search]</b>\n{result}\n")
+        except Exception as e:
+            current_tab = self.tabs.currentWidget()
+            if current_tab and hasattr(current_tab, 'chat_area'):
+                current_tab.chat_area.append(f"\n<b style='color:#ff4444;'>[Task Agent Error]</b> {e}\n")
 
     def create_analysis_prompt(self, results, project_path):
         """Create a comprehensive prompt for AI to analyze results and suggest solutions."""
@@ -494,10 +627,25 @@ Please be thorough but practical in your recommendations. Focus on actionable im
         
         tab.response_handler.finished_signal.connect(_on_analysis_finish)
 
-# Create worker for AI analysis
+        # Create worker for AI analysis using unified worker
         try:
-            tab.worker = OllamaTypingWorker(tab.model, prompt, self.settings.get("ollama_path", "ollama"), allow_long)
+            provider = self.settings.get("model_provider", "ollama")
+            api_key = ""
+            if provider == "openai":
+                api_key = self.settings.get("openai_api_key", "")
+            elif provider == "anthropic":
+                api_key = self.settings.get("anthropic_api_key", "")
+            elif provider == "google":
+                api_key = self.settings.get("google_api_key", "")
+            
+            tab.worker = UnifiedWorker(
+                tab.model, prompt, provider,
+                self.settings.get("ollama_path", "ollama"), api_key, allow_long
+            )
             tab.worker.new_chunk.connect(tab.response_handler.handle_chunk)
+            tab.worker.progress_update.connect(tab.typing_label.setText)
+            tab.worker.error_signal.connect(lambda err: tab.chat_area.append(f"<b style='color:#ff4443;'>[Error]</b> {err}\n"))
+            
             tab.stop_btn.setText("Halt" if allow_long else "Stop")
             tab.stop_btn.setEnabled(True)
             tab.send_btn.setEnabled(False)

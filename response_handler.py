@@ -1,11 +1,13 @@
 """
 Enhanced Response Handler for chugaGPT
-Provides chunk-based streaming, advanced formatting, and better user experience
+Provides chunk-based streaming, advanced formatting, tool execution, and better user experience
 """
 
 import re
 import time
 import threading
+import os
+from pathlib import Path
 from PySide6.QtCore import QObject, Signal, QTimer
 from PySide6.QtWidgets import QTextEdit
 from PySide6.QtGui import QTextCursor
@@ -205,7 +207,8 @@ class SimpleResponseHandler(QObject):
     progress_update = Signal(str)  # Progress updates
     error_signal = Signal(str)  # Error notifications
     finished_signal = Signal()  # Response complete
-
+    tool_executed = Signal(dict)  # Emitted when a tool is executed
+    
     def __init__(self, chat_area):
         super().__init__()
         self.chat_area = chat_area
@@ -215,11 +218,69 @@ class SimpleResponseHandler(QObject):
         self.is_answer = False
         self.pending_text = ""
         self.full_response = ""
+        self._tool_executor = None
+        self._tool_results = []
+        self._last_tool_result = ""
+        self._tool_executor_root = "."
         
         # Timer for periodic UI updates
         self.update_timer = QTimer()
         self.update_timer.timeout.connect(self._flush_buffer)
         self.update_timer.start(50)  # Update every 50ms
+    
+    def set_tool_root(self, root_path: str):
+        """Set the root path for tool execution."""
+        self._tool_executor_root = root_path
+        self._tool_executor = None  # Reset to force reload with new path
+    
+    def get_tool_executor(self, root_path: str = "."):
+        """Lazy-load tool executor"""
+        if self._tool_executor is None:
+            from tools import create_tool_executor
+            self._tool_executor = create_tool_executor(root_path or self._tool_executor_root)
+        return self._tool_executor
+    
+    def execute_tool_from_response(self, response: str, root_path: str = ".") -> list:
+        """Extract and execute tools from AI response"""
+        results = []
+        
+        # Quick check if any tools are mentioned
+        if '<tool>' not in response:
+            return results
+        
+        # Find and execute tools
+        for pattern, tool_type in TOOL_PATTERNS:
+            matches = re.findall(pattern, response, re.IGNORECASE)
+            for match in matches:
+                try:
+                    executor = self.get_tool_executor(root_path or self._tool_executor_root)
+                    result = executor.parse_and_execute(match)
+                    results.append(result)
+                    
+                    # Store for context
+                    self._tool_results.append(result)
+                    self._last_tool_result = result.get('result', '')
+                    
+                    # Emit signal for UI updates
+                    self.tool_executed.emit(result)
+                except Exception as e:
+                    error_result = {"type": tool_type, "error": str(e)}
+                    results.append(error_result)
+                    self.tool_executed.emit(error_result)
+        
+        return results
+    
+    def get_tool_context(self) -> str:
+        """Get formatted tool results for AI context"""
+        if not self._tool_results:
+            return ""
+        
+        context = "\n# Tool Execution Results\n\n"
+        for result in self._tool_results:
+            context += f"## {result.get('type', 'unknown')}\n"
+            context += f"{result.get('result', '')}\n\n"
+        
+        return context
     
     def handle_chunk(self, chunk: str):
         """Handle incoming response chunk with enhanced animations"""
@@ -372,9 +433,19 @@ class SimpleResponseHandler(QObject):
             self._process_buffered_content(remaining)
     
     def finish_response(self):
-        """Called when response is complete"""
+        """Called when response is complete - execute any tools found"""
         self._flush_buffer()
         self.update_timer.stop()
+        
+        # Execute tools from the full response
+        if self.full_response and '<tool>' in self.full_response:
+            try:
+                tool_results = self.execute_tool_from_response(self.full_response)
+                if tool_results:
+                    self.progress_update.emit(f"Executed {len(tool_results)} tool(s)")
+            except Exception as e:
+                self.error_signal.emit(f"Tool execution error: {e}")
+        
         self.finished_signal.emit()
     
     def reset_state(self):
@@ -478,6 +549,16 @@ class ResponseQualityValidator:
             score += 5
         
         return max(0, min(100, score))
+
+# Tool execution patterns - detect tool calls in AI responses
+TOOL_PATTERNS = [
+    (r'<tool>glob\s+(.+?)</tool>', 'glob'),
+    (r'<tool>grep\s+(.+?)</tool>', 'grep'),
+    (r'<tool>read\s+(.+?)</tool>', 'read'),
+    (r'<tool>write\s+(.+?)</tool>', 'write'),
+    (r'<tool>edit\s+(.+?)</tool>', 'edit'),
+    (r'<tool>bash\s+(.+?)</tool>', 'bash'),
+]
 
 # Keep the old name for backward compatibility
 EnhancedResponseHandler = SimpleResponseHandler

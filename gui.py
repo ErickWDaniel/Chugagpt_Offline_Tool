@@ -103,6 +103,30 @@ class SettingsDialog(QDialog):
         self.enable_completion.setToolTip("Enable real-time code completion suggestions")
         layout.addRow(self.enable_completion)
 
+        # Model Provider Selection
+        self.provider_combo = QComboBox()
+        self.provider_combo.addItems(["ollama", "openai", "anthropic", "google"])
+        current_provider = settings.get("model_provider", "ollama")
+        self.provider_combo.setCurrentText(current_provider)
+        self.provider_combo.currentTextChanged.connect(self.on_provider_changed)
+        layout.addRow("Model Provider:", self.provider_combo)
+
+        # Model selection (dynamic based on provider)
+        self.model_combo = QComboBox()
+        self.model_combo.setEditable(True)
+        self._update_models_for_provider(current_provider)
+        current_model = settings.get("model", "phi3:mini")
+        if current_model in [self.model_combo.itemText(i) for i in range(self.model_combo.count())]:
+            self.model_combo.setCurrentText(current_model)
+        layout.addRow("Model:", self.model_combo)
+
+        # API Key inputs (conditional on provider)
+        self.api_key_input = QLineEdit()
+        self.api_key_input.setEchoMode(QLineEdit.EchoMode.Password)
+        self.api_key_input.setText(settings.get(f"{current_provider}_api_key", ""))
+        self.api_key_label = QLabel("API Key:")
+        layout.addRow(self.api_key_label, self.api_key_input)
+
         self.language_combo = QComboBox()
         self.language_combo.addItems(["english", "spanish", "french", "german", "chinese", "japanese", "korean"])
         current_lang = settings.get("language", "english")
@@ -121,17 +145,53 @@ class SettingsDialog(QDialog):
         if file:
             self.path_input.setText(file)
 
+    def on_provider_changed(self, provider):
+        """Update UI based on selected provider"""
+        self._update_models_for_provider(provider)
+        
+        # Update API key field
+        self.api_key_input.setText("")
+        if provider != "ollama":
+            self.api_key_label.setVisible(True)
+            self.api_key_input.setVisible(True)
+        else:
+            self.api_key_label.setVisible(False)
+            self.api_key_input.setVisible(False)
+
+    def _update_models_for_provider(self, provider):
+        """Update model list based on provider"""
+        self.model_combo.clear()
+        
+        if provider == "ollama":
+            try:
+                from utils import get_ollama_models
+                models = get_ollama_models("ollama")
+                if models:
+                    self.model_combo.addItems(models)
+                else:
+                    self.model_combo.addItems(["phi3:mini", "llama3:8b", "mistral:7b"])
+            except Exception:
+                self.model_combo.addItems(["phi3:mini", "llama3:8b", "mistral:7b"])
+        elif provider == "openai":
+            self.model_combo.addItems(["gpt-4o", "gpt-4o-mini", "gpt-4-turbo", "gpt-3.5-turbo"])
+        elif provider == "anthropic":
+            self.model_combo.addItems(["claude-3-5-sonnet-20241022", "claude-3-opus-20240229", "claude-3-haiku-20240307"])
+        elif provider == "google":
+            self.model_combo.addItems(["gemini-2.0-flash-exp", "gemini-1.5-pro", "gemini-1.5-flash"])
+
 # -------------------------
 # Entity Sidebar
 # -------------------------
 class EntitySidebar(QWidget):
-    """Sidebar widget that displays shortcut buttons for found entities."""
+    """Sidebar widget that displays shortcut buttons for found entities and skills."""
 
     def __init__(self, parent=None):
         super().__init__(parent)
         self.analysis_context = None
         self.main_window = parent  # Store reference to main window
+        self.skill_loader = None
         self.init_ui()
+        self.load_skills()
 
     def init_ui(self):
         """Initialize the sidebar UI."""
@@ -217,6 +277,87 @@ class EntitySidebar(QWidget):
         analyze_btn.clicked.connect(self.on_analyze_clicked)
         layout.addWidget(analyze_btn)
 
+        # Teams button (Multi-Agent)
+        teams_btn = QPushButton("🤖 AI Teams")
+        teams_btn.setToolTip("Setup multi-agent teams")
+        teams_btn.setStyleSheet("""
+            QPushButton {
+                text-align: left;
+                padding: 8px 10px;
+                border: 1px solid #f1f5f9;
+                background-color: #ffffff;
+                color: #202123;
+                font-size: 14px;
+                border-radius: 8px;
+                margin-bottom: 5px;
+            }
+            QPushButton:hover {
+                border: 1px solid #ab68ff;
+                background-color: #f7f7f8;
+                color: #ab68ff;
+            }
+            QPushButton:pressed {
+                background-color: #ab68ff;
+                color: #ffffff;
+            }
+        """)
+        teams_btn.clicked.connect(self.on_teams_clicked)
+        layout.addWidget(teams_btn)
+
+        # Skills button
+        skills_btn = QPushButton("🎯 Skills")
+        skills_btn.setToolTip("Browse and execute available skills")
+        skills_btn.setStyleSheet("""
+            QPushButton {
+                text-align: left;
+                padding: 8px 10px;
+                border: 1px solid #f1f5f9;
+                background-color: #ffffff;
+                color: #202123;
+                font-size: 14px;
+                border-radius: 8px;
+                margin-bottom: 5px;
+            }
+            QPushButton:hover {
+                border: 1px solid #ab68ff;
+                background-color: #f7f7f8;
+                color: #ab68ff;
+            }
+            QPushButton:pressed {
+                background-color: #ab68ff;
+                color: #ffffff;
+            }
+        """)
+        skills_btn.clicked.connect(self.on_skills_clicked)
+        layout.addWidget(skills_btn)
+
+        # Task Agent button
+        task_btn = QPushButton("🚀 Task Agent")
+        task_btn.setToolTip("Run background exploration tasks")
+        task_btn.setStyleSheet("""
+            QPushButton {
+                text-align: left;
+                padding: 8px 10px;
+                border: 1px solid #f1f5f9;
+                background-color: #ffffff;
+                color: #202123;
+                font-size: 14px;
+                border-radius: 8px;
+                margin-bottom: 5px;
+            }
+            QPushButton:hover {
+                border: 1px solid #00d9ff;
+                background-color: #f7f7f8;
+                color: #00d9ff;
+            }
+            QPushButton:pressed {
+                background-color: #00d9ff;
+                color: #ffffff;
+            }
+        """)
+        task_btn.clicked.connect(self.on_task_agent_clicked)
+        layout.addWidget(task_btn)
+
         # Settings button
         settings_btn = QPushButton("⚙️ Settings")
         settings_btn.setToolTip("Open application settings")
@@ -243,6 +384,71 @@ class EntitySidebar(QWidget):
         """)
         settings_btn.clicked.connect(self.on_settings_clicked)
         layout.addWidget(settings_btn)
+
+    def load_skills(self):
+        """Load available skills from the skills directory."""
+        try:
+            from skills import get_skill_loader
+            import os
+            root_path = os.path.join(os.path.dirname(__file__), ".")
+            self.skill_loader = get_skill_loader(root_path)
+        except Exception as e:
+            print(f"Error loading skills: {e}")
+            self.skill_loader = None
+
+    def on_skills_clicked(self):
+        """Handle skills button click - show available skills."""
+        if not self.skill_loader:
+            self.load_skills()
+        
+        if not self.skill_loader or not self.skill_loader.get_available_skills():
+            if self.main_window and hasattr(self.main_window, 'show_entity_info'):
+                self.main_window.show_entity_info("**Skills:** No skills loaded.\n\nAdd skill definitions to the `.skills/` directory.")
+            return
+        
+        # Show skills help in chat
+        help_text = self.skill_loader.get_skill_help()
+        if self.main_window and hasattr(self.main_window, 'show_entity_info'):
+            self.main_window.show_entity_info(help_text)
+
+    def on_teams_clicked(self):
+        """Handle teams button click - open team setup dialog."""
+        try:
+            from team_dialog import TeamDialog
+            dialog = TeamDialog(self)
+            dialog.exec()
+        except Exception as e:
+            print(f"Team dialog error: {e}")
+            if self.main_window and hasattr(self.main_window, 'show_entity_info'):
+                self.main_window.show_entity_info(f"**Teams Error:** {e}")
+
+    def on_task_agent_clicked(self):
+        """Handle task agent button click - run exploration task."""
+        if not self.main_window:
+            return
+        
+        # Get project root
+        project_root = self.main_window.settings.get("project_root", "..")
+        
+        # Show task agent info and execute a simple exploration
+        info = """**Task Agent Available**
+
+The Task Agent can run background exploration tasks:
+- **Explore**: Find files matching patterns
+- **Search**: Search code for patterns  
+- **Read**: Read file contents
+
+Initiating exploration of project root..."""
+        
+        if hasattr(self.main_window, 'show_entity_info'):
+            self.main_window.show_entity_info(info)
+        
+        # Actually run a task in background
+        try:
+            if hasattr(self.main_window, 'run_background_task'):
+                self.main_window.run_background_task("explore", project_root, "*.py")
+        except Exception as e:
+            print(f"Task agent error: {e}")
 
     def on_new_chat_clicked(self):
         """Handle new chat button click."""
@@ -512,6 +718,7 @@ class ChatTab(QWidget):
         self.settings = settings
         self.model = model
         self.analysis_context = analysis_context  # Store analysis context for follow-up questions
+        self.task_agent = None
         layout = QVBoxLayout(self)
 
         # Model selection row
@@ -759,6 +966,7 @@ class ChatTab(QWidget):
         self.is_answer = False
         self.pending_text = ""
         self._answer_started = False
+        self.tool_context = ""  # Store tool execution context for follow-up questions
 
         # Initialize completion engine and floating suggestion widget if enabled
         if self.settings.get("enable_completion", False):

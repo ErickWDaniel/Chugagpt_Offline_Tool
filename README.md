@@ -1,5 +1,5 @@
 # ChugaGPT - Offline AI Development Assistant
-
+ 
 ![ChugaGPT Logo](https://img.shields.io/badge/ChugaGPT-Offline%20AI-blue?style=for-the-badge&logo=ai&logoColor=white)
 
 ChugaGPT is a powerful AI-powered development tool with a modern GUI interface. It integrates with Ollama for offline AI and supports cloud models (OpenAI, Anthropic, Google) to provide intelligent code analysis, project insights, and AI-powered chat functionality.
@@ -18,9 +18,9 @@ ChugaGPT is a powerful AI-powered development tool with a modern GUI interface. 
 ### Advanced AI Features
 - **Multi-Agent System**: Anthropic-style agentic AI with team collaboration
 - **Team Setup**: Configure multiple AI agents working together on complex tasks
-- **Tool Integration**: AI can execute bash commands, read/write files, search code
-- **Skills System**: Load custom skills from `.skills/` directory
-- **Task Agent**: Background exploration and analysis tasks
+- **Tool Integration**: AI can execute bash commands, read/write/edit files, search code
+- **Skills System**: Load custom skills from `.skills/` directory (file_search, write, edit, bash, explore, code_analysis, read_file)
+- **Task Agent**: Background exploration and analysis tasks with improved dialog
 - **Auto Model Scan**: Automatically detect newly downloaded Ollama models
 
 ### Development Features
@@ -31,6 +31,91 @@ ChugaGPT is a powerful AI-powered development tool with a modern GUI interface. 
 - **Model Management**: Easy switching between different AI models
 - **Project Scanning**: Comprehensive project structure analysis
 - **History Management**: Persistent chat history across sessions
+
+### Packaging & Distribution
+- **Standalone Executables**: Ready-to-use builds for Linux and Windows in `preview/` directory
+- **User-Friendly Launchers**: `Run_Chugagpt_Linux.sh` and `Run_Chugagpt_Windows.bat`
+- **Fixed UI Elements**: Text input field maintains 80px fixed height (won't squeeze after analysis)
+- **Preview Directory**: Contains build scripts, launchers, and documentation
+- **One-Click Setup**: `setup_linux.sh` handles everything automatically
+
+## 📦 Packaging for Users
+
+### For Non-Technical Users
+
+ChugaGPT can be packaged as standalone executables:
+
+**Linux**:
+```bash
+cd preview/
+./build_linux.sh
+# Executable: preview/dist/linux/Chugagpt_Offline_Tool
+```
+
+**Windows**:
+```bash
+cd preview/
+build_windows.bat
+# Executable: preview\dist\windows\Chugagpt_Offline_Tool.exe
+```
+
+### User-Launcher Scripts
+
+After packaging, users can simply:
+- **Linux**: Double-click `Run_Chugagpt_Linux.sh`
+- **Windows**: Double-click `Run_Chugagpt_Windows.bat`
+
+These scripts automatically:
+1. Check for Python
+2. Create virtual environment
+3. Install dependencies
+4. Start the application
+
+### First-Time Setup
+
+Users need to install Ollama first:
+```bash
+# Linux
+curl -fsSL https://ollama.com/install.sh | sh
+ollama pull llama3.2
+
+# Windows: Download from https://ollama.com/download
+```
+
+## 🔧 Enhanced Task Agent
+
+### New Task Agent Dialog
+
+Click "Task Agent" in sidebar to open an enhanced dialog with:
+
+**Run Tasks Tab**:
+- Execute explore, search, and read_file tasks
+- View real-time output
+- Background execution with threading
+
+**Skills Tab**:
+- Enable/disable agent skills with checkboxes
+- View skill descriptions and triggers
+- Refresh skills list
+
+**Results Tab**:
+- View recent task results
+- Track task history
+- Monitor background tasks
+
+### Available Skills (7 Total)
+
+| Skill | Description | Triggers |
+|-------|-------------|----------|
+| file_search | Search and explore files | find file, search, grep |
+| write | Write content to files | write, create file, save to file |
+| edit | Edit files by replacing text | edit, modify file, replace in file |
+| bash | Execute shell commands | bash, run command, execute |
+| explore | Explore codebase with tools | explore, find files, search code |
+| code_analysis | Analyze code quality | analyze code, review code, lint |
+| read_file | Read file contents | read, show, view, cat |
+
+The AI can now actively modify your project - creating new files, editing existing code, and running commands!
 
 ## 📸 Screenshots
 

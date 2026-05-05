@@ -1,0 +1,69 @@
+════════════════════════════════════════════════════════════════
+        CHUGAGPT OFFLINE TOOL - INSTALLATION INSTRUCTIONS
+════════════════════════════════════════════════════════════════
+
+This package contains everything you need to run Chugagpt Offline Tool.
+
+────────────────────────────────────────────────────────────────
+  WHAT'S INCLUDED
+────────────────────────────────────────────────────────────────
+
+- dist/linux/Chugagpt_Offline_Tool         (Linux executable)
+- dist/windows/Chugagpt_Offline_Tool.exe   (Windows executable - build on Windows)
+- Run_Chugagpt_Linux.sh                    (Linux launcher)
+- README_FOR_USERS.md                      (Detailed guide)
+- QUICK_START.txt                          (Simple instructions)
+- build_linux.sh                           (Build script for Linux)
+- build_windows.bat                        (Build script for Windows)
+
+────────────────────────────────────────────────────────────────
+  BEFORE YOU START - IMPORTANT!
+────────────────────────────────────────────────────────────────
+
+This app requires Ollama to be installed for local AI models.
+
+★ LINUX: Run this in terminal:
+    curl -fsSL https://ollama.com/install.sh | sh
+    ollama pull llama3.2
+
+★ WINDOWS: 
+    1. Download Ollama from: https://ollama.com/download
+    2. Install it
+    3. Open Command Prompt and run: ollama pull llama3.2
+
+────────────────────────────────────────────────────────────────
+  HOW TO RUN (NON-TECHNICAL USERS)
+────────────────────────────────────────────────────────────────
+
+★ LINUX:
+    1. Open the folder containing this package
+    2. Double-click "Run_Chugagpt_Linux.sh"
+    3. Or navigate to dist/linux and double-click "Chugagpt_Offline_Tool"
+
+★ WINDOWS:
+    1. Open the folder containing this package
+    2. Navigate to dist/windows
+    3. Double-click "Chugagpt_Offline_Tool.exe"
+    4. If warned about safety, click "More info" → "Run anyway"
+
+────────────────────────────────────────────────────────────────
+  TROUBLESHOOTING
+────────────────────────────────────────────────────────────────
+
+Problem: "Command not found" or "Permission denied"
+Solution: Run this in terminal: chmod +x Chugagpt_Offline_Tool
+
+Problem: App opens but no models available
+Solution: Make sure Ollama is installed and running, then run:
+         ollama pull llama3.2
+
+Problem: App won't start
+Solution: Make sure Ollama is running in the background
+
+────────────────────────────────────────════════════════════════
+  NEED MORE HELP?
+────────────────────────────────────────────────────────────────
+
+Read README_FOR_USERS.md for detailed instructions.
+
+════════════════════════════════════════════════════════════════

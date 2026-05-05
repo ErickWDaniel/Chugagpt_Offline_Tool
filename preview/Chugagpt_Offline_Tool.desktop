@@ -1,0 +1,9 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=Chugagpt Offline Tool
+Comment=Chat with AI models offline
+Exec=/home/x/projects/Chugagpt_Offline_Tool/preview/dist/linux/Chugagpt_Offline_Tool
+Icon=/home/x/projects/Chugagpt_Offline_Tool/chugGPTScreenShoot1.png
+Terminal=false
+Categories=Utility;Development;AI;

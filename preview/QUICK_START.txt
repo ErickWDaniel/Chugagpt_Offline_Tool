@@ -1,0 +1,41 @@
+════════════════════════════════════════════════════════════════
+           CHUGAGPT OFFLINE TOOL - QUICK START GUIDE
+════════════════════════════════════════════════════════════════
+
+For Non-Technical Users - Just Follow These Simple Steps!
+
+────────────────────────────────────────────────────────────────
+  LINUX USERS
+────────────────────────────────────────────────────────────────
+
+1. Open the "dist/linux" folder
+2. Double-click the "Chugagpt_Offline_Tool" file
+3. If asked, click "Run" or "Execute"
+4. Done! The app should open.
+
+First time? You need Ollama:
+→ Open terminal and run: curl -fsSL https://ollama.com/install.sh | sh
+→ Then run: ollama pull llama3.2
+
+────────────────────────────────────────────────────────────────
+  WINDOWS USERS
+────────────────────────────────────────────────────────────────
+
+1. Open the "dist/windows" folder
+2. Double-click "Chugagpt_Offline_Tool.exe"
+3. If Windows Defender appears, click "More info" → "Run anyway"
+4. Done! The app should open.
+
+First time? You need Ollama:
+→ Download from: https://ollama.com/download
+→ Install it, then open Command Prompt and run: ollama pull llama3.2
+
+────────────────────────────────────────────────────────────────
+  NEED HELP?
+────────────────────────────────────────────────────────────────
+
+- Make sure Ollama is running in the background
+- Check README_FOR_USERS.md for detailed instructions
+- The app needs local AI models to work (requires Ollama)
+
+════════════════════════════════════════════════════════════════

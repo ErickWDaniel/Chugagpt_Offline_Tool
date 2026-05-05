@@ -1,0 +1,5 @@
+{
+    "name": "bash",
+    "description": "Execute shell commands - run bash commands in the project directory",
+    "triggers": ["bash", "run command", "execute", "shell", "terminal", "command line"]
+}

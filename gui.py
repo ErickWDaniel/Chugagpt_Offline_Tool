@@ -423,32 +423,15 @@ class EntitySidebar(QWidget):
                 self.main_window.show_entity_info(f"**Teams Error:** {e}")
 
     def on_task_agent_clicked(self):
-        """Handle task agent button click - run exploration task."""
-        if not self.main_window:
-            return
-        
-        # Get project root
-        project_root = self.main_window.settings.get("project_root", "..")
-        
-        # Show task agent info and execute a simple exploration
-        info = """**Task Agent Available**
-
-The Task Agent can run background exploration tasks:
-- **Explore**: Find files matching patterns
-- **Search**: Search code for patterns  
-- **Read**: Read file contents
-
-Initiating exploration of project root..."""
-        
-        if hasattr(self.main_window, 'show_entity_info'):
-            self.main_window.show_entity_info(info)
-        
-        # Actually run a task in background
+        """Handle task agent button click - open task agent dialog."""
         try:
-            if hasattr(self.main_window, 'run_background_task'):
-                self.main_window.run_background_task("explore", project_root, "*.py")
+            from task_agent_dialog import TaskAgentDialog
+            dialog = TaskAgentDialog(self, self.main_window.settings if self.main_window else None)
+            dialog.exec()
         except Exception as e:
-            print(f"Task agent error: {e}")
+            print(f"Task agent dialog error: {e}")
+            if self.main_window and hasattr(self.main_window, 'show_entity_info'):
+                self.main_window.show_entity_info(f"**Task Agent Error:** {e}")
 
     def on_new_chat_clicked(self):
         """Handle new chat button click."""
@@ -846,13 +829,14 @@ class ChatTab(QWidget):
         """)
         self.attach_btn.clicked.connect(self.attach_file)
 
-        # Multi-line chat input
+        # Multi-line chat input - FIXED HEIGHT to prevent squeezing
         self.input_box = QTextEdit()
         try:
             self.input_box.setPlaceholderText("Type a message... Enter to send, Shift+Enter for newline")
         except Exception:
             pass
-        self.input_box.setFixedHeight(56)
+        self.input_box.setFixedHeight(80)  # Fixed height - won't squeeze
+        self.input_box.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)  # Allow scrolling if text exceeds
         self.input_box.setStyleSheet("""
             QTextEdit {
                 background-color: #ffffff;
@@ -958,8 +942,10 @@ class ChatTab(QWidget):
         # Assemble bottom input bar
         layout.addLayout(input_layout)
 
-        # Maximize chat area usage
-        layout.setStretch(1, 1)
+        # Fix layout: chat area stretches, input area stays fixed at bottom
+        # Indices: 0=top_bar, 1=chat_area, 2=input_layout
+        layout.setStretch(1, 1)  # chat_area (index 1) stretches
+        layout.setStretch(2, 0)  # input_layout (index 2) fixed height
 
         # Reset formatting states for new response
         self.is_thinking = False

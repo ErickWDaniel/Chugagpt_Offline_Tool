@@ -1,0 +1,5 @@
+{
+    "name": "write",
+    "description": "Write content to files - create new files or overwrite existing ones",
+    "triggers": ["write", "create file", "save to file", "write to file", "create new file"]
+}

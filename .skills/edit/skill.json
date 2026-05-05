@@ -1,0 +1,5 @@
+{
+    "name": "edit",
+    "description": "Edit files by replacing text - find and replace content in existing files",
+    "triggers": ["edit", "modify file", "change file", "update file", "replace in file", "find and replace"]
+}

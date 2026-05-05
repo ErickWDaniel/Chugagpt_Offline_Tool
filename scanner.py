@@ -24,7 +24,7 @@ class BaseProjectScanner:
     def __init__(self, root_path: str = ".", max_workers: int = 8):
         """Initialize scanner with root path and max workers for parallel processing."""
         self.root_path = Path(root_path)
-        self.exclude_dirs = {'.git', '__pycache__', '.venv', 'node_modules', '.idea', 'build', 'dist'}
+        self.exclude_dirs = {'.git', '__pycache__', '.venv', 'venv', 'node_modules', '.idea', 'build', 'dist', 'chugagpt_env', 'chugaGPT'}
         self.cancel_event = threading.Event()
         self.progress_callback: Optional[Callable[[str], None]] = None
         self.max_workers = max_workers
@@ -495,15 +495,6 @@ class BaseProjectScanner:
                     return node
         return None
 
-            if self.advanced_analysis:
-                analysis['complexity'] = self._calculate_complexity(tree)
-                analysis['docstrings'] = self._check_docstrings(tree)
-                analysis['unused_imports'] = self._detect_unused_imports(tree)
-
-            return analysis
-        except Exception as e:
-            return {'error': f"Python analysis failed: {str(e)}"}
-
     def _analyze_simple_code(self, file_path: Path) -> Dict[str, Any]:
         """Regex-based analysis for non-Python code (JS/TS/Java). Note: Approximate."""
         try:
@@ -640,15 +631,18 @@ def format_scan_results(scan_results: Dict[str, Any]) -> str:
     for file_path, info in scan_results.items():
         output += f"📄 {file_path}\n"
         output += f"   Type: {info.get('type', 'Unknown')}\n"
-        output += f"   Size: {info['size']} bytes\n"
+        output += f"   Size: {info.get('size', 0)} bytes\n"
 
         if 'classes' in info:
-            if info['classes']:
-                output += f"   Classes: {', '.join([c['name'] for c in info['classes']])}\n"
-            if info['functions']:
-                output += f"   Functions: {', '.join([f['name'] for f in info['functions']])}\n"
-            if info['imports']:
-                output += f"   Imports: {', '.join(info['imports'][:5])}{'...' if len(info['imports']) > 5 else ''}\n"
+            classes = info.get('classes', [])
+            if classes:
+                output += f"   Classes: {', '.join([c['name'] for c in classes])}\n"
+            functions = info.get('functions', [])
+            if functions:
+                output += f"   Functions: {', '.join([f['name'] for f in functions])}\n"
+            imports = info.get('imports', [])
+            if imports:
+                output += f"   Imports: {', '.join(imports[:5])}{'...' if len(imports) > 5 else ''}\n"
             output += f"   Lines: {info.get('line_count', 0)}\n"
 
         output += "\n"
@@ -776,10 +770,9 @@ class ProjectAnalyzer(BaseProjectScanner):
             elif 'config' in lower_path or 'settings' in lower_path:
                 architecture['config_files'].append(file_path)
             
-            # Statistics
-            total_size += info.get('size', 0)
-            if 'line_count' in info:
-                architecture['total_lines'] += info['line_count']
+        # Statistics
+            total_size += info.get('size',0)
+            architecture['total_lines'] += info.get('line_count', 0)
         
         if architecture['total_files'] > 0:
             architecture['avg_file_size'] = total_size / architecture['total_files']
@@ -803,13 +796,14 @@ class ProjectAnalyzer(BaseProjectScanner):
                 
             # High complexity files
             if info.get('complexity', 0) > 10:
-                issues['high_complexity_files'].append(f"{file_path} (complexity: {info['complexity']})")
+                issues['high_complexity_files'].append(f"{file_path} (complexity: {info.get('complexity', 0)})")
             
             # Missing docstrings (Python only)
             if file_type == 'Python':
                 docstrings = info.get('docstrings', {})
-                if docstrings.get('total_functions', 0) > 0:
-                    docstring_ratio = docstrings.get('functions', 0) / docstrings['total_functions']
+                total_funcs = docstrings.get('total_functions', 0)
+                if total_funcs > 0:
+                    docstring_ratio = docstrings.get('functions', 0) / total_funcs
                     if docstring_ratio < 0.5:
                         issues['missing_docstrings'].append(f"{file_path} ({docstring_ratio:.1%} functions documented)")
                 
@@ -820,7 +814,7 @@ class ProjectAnalyzer(BaseProjectScanner):
             
             # Large files
             if info.get('line_count', 0) > 500:
-                issues['large_files'].append(f"{file_path} ({info['line_count']} lines)")
+                issues['large_files'].append(f"{file_path} ({info.get('line_count', 0)} lines)")
             
             # Potential bugs (simple heuristics)
             content = info.get('content_preview', '')
@@ -936,13 +930,13 @@ class ProjectAnalyzer(BaseProjectScanner):
             file_feedback += f"- Size: {info.get('size', 0)} bytes\n"
             
             if 'line_count' in info:
-                file_feedback += f"- Lines of code: {info['line_count']}\n"
+                file_feedback += f"- Lines of code: {info.get('line_count', 0)}\n"
             
-            if 'classes' in info and info['classes']:
-                file_feedback += f"- Classes: {len(info['classes'])}\n"
+            if 'classes' in info and info.get('classes'):
+                file_feedback += f"- Classes: {len(info.get('classes', []))}\n"
             
-            if 'functions' in info and info['functions']:
-                file_feedback += f"- Functions: {len(info['functions'])}\n"
+            if 'functions' in info and info.get('functions'):
+                file_feedback += f"- Functions: {len(info.get('functions', []))}\n"
             
             # Specific feedback
             if info.get('complexity', 0) > 10:
@@ -950,13 +944,14 @@ class ProjectAnalyzer(BaseProjectScanner):
             
             if info.get('type') == 'Python':
                 docstrings = info.get('docstrings', {})
-                if docstrings.get('total_functions', 0) > 0:
-                    ratio = docstrings.get('functions', 0) / docstrings['total_functions']
+                total_funcs = docstrings.get('total_functions', 0)
+                if total_funcs > 0:
+                    ratio = docstrings.get('functions', 0) / total_funcs
                     if ratio < 0.5:
                         file_feedback += f"- ⚠️ Low docstring coverage ({ratio:.1%})\n"
                 
                 if info.get('unused_imports'):
-                    file_feedback += f"- ⚠️ Potential unused imports: {len(info['unused_imports'])}\n"
+                    file_feedback += f"- ⚠️ Potential unused imports: {len(info.get('unused_imports', []))}\n"
             
             feedback[file_path] = file_feedback
         
